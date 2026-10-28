@@ -3,8 +3,9 @@ import { prisma } from '@/lib/prisma'
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params
   await prisma.foodItem.delete({
     where: { id: params.id },
   })
@@ -13,8 +14,9 @@ export async function DELETE(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params
   const body = await request.json()
   const item = await prisma.foodItem.update({
     where: { id: params.id },
