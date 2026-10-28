@@ -1,0 +1,115 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 냉장고 타입
+enum FridgeType {
+  NORMAL_FRIDGE   // 일반 냉장고
+  NORMAL_FREEZER  // 일반 냉동실
+  KIMCHI_FRIDGE   // 김치냉장고
+  SIDE_DISH_FRIDGE // 밑반찬 냉장고
+}
+
+// 식재료 카테고리
+enum FoodCategory {
+  KIMCHI          // 김치/장아찌
+  SIDE_DISH       // 밑반찬
+  SOUP_STEW       // 국/찌개/육수
+  SAUCE_SEASONING // 장류/양념
+  BABY_FOOD       // 이유식
+  MEAT_FISH       // 육류/생선
+  VEGETABLE_FRUIT // 채소/과일
+  DAIRY           // 유제품
+  ETC             // 기타
+}
+
+// 김치 숙성도
+enum KimchiRipeness {
+  FRESH      // 막김치 (0-3일)
+  RIPE       // 적당 (4-14일)
+  SOUR       // 신김치 (15일+)
+}
+
+// 이유식 단계
+enum BabyFoodStage {
+  EARLY   // 초기 (4-6개월)
+  MIDDLE  // 중기 (7-9개월)
+  LATE    // 후기 (10-12개월)
+}
+
+// 냉장고
+model Fridge {
+  id        String      @id @default(cuid())
+  name      String      // "우리집 냉장고", "김치냉장고"
+  type      FridgeType
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  
+  items     FoodItem[]
+  
+  @@map("fridges")
+}
+
+// 식재료
+model FoodItem {
+  id          String        @id @default(cuid())
+  name        String        // "배추김치", "멸치볶음"
+  category    FoodCategory
+  quantity    Float?        // 수량
+  unit        String?       // "kg", "개", "큐브"
+  
+  // 날짜 관리
+  purchaseDate DateTime?    // 구매일
+  expiryDate   DateTime?    // 유통기한
+  openedAt     DateTime?    // 개봉일
+  
+  // 김치 전용
+  kimchiType     String?          // "배추김치", "깍두기"
+  kimchiRipeness KimchiRipeness?
+  
+  // 이유식 전용
+  babyFoodStage  BabyFoodStage?
+  cubeCount      Int?             // 큐브 개수
+  
+  // 관계
+  fridgeId    String
+  fridge      Fridge    @relation(fields: [fridgeId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@map("food_items")
+  @@index([fridgeId])
+  @@index([expiryDate])
+  @@index([category])
+}
+
+// 프리셋 템플릿
+model FoodPreset {
+  id                String        @id @default(cuid())
+  name              String        @unique // "배추김치", "멸치볶음"
+  category          FoodCategory
+  defaultShelfLife  Int?          // 기본 유통기한 (일)
+  defaultUnit       String?       // 기본 단위
+  
+  // 김치 프리셋
+  isKimchi          Boolean       @default(false)
+  kimchiType        String?
+  
+  // 이유식 프리셋
+  isBabyFood        Boolean       @default(false)
+  babyFoodStage     BabyFoodStage?
+  
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  @@map("food_presets")
+}
