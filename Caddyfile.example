@@ -1,0 +1,34 @@
+# Caddy 리버스 프록시 설정
+# 위치: ~/fridge-manager-korea/Caddyfile
+
+fridge.ian-rounge.store {
+  encode zstd gzip
+  
+  header {
+    -Server
+    Strict-Transport-Security "max-age=31536000"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "SAMEORIGIN"
+    X-XSS-Protection "1; mode=block"
+  }
+
+  # Rate limiting (optional)
+  # rate_limit {
+  #   zone fridge {
+  #     key {remote_host}
+  #     events 100
+  #     window 1m
+  #   }
+  # }
+
+  reverse_proxy localhost:3001 {
+    header_up Host {host}
+    header_up X-Real-IP {remote_host}
+    header_up X-Forwarded-For {remote_host}
+    header_up X-Forwarded-Proto {scheme}
+  }
+
+  log {
+    output file /var/log/caddy/fridge-manager.log
+  }
+}

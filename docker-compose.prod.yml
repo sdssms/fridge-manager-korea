@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: fridge-manager-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: fridge_manager
+    ports:
+      - "5433:5432"  # 포트 충돌 방지
+    volumes:
+      - fridge_postgres_data:/var/lib/postgresql/data
+    networks:
+      - fridge-network
+
+  # Next.js App
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fridge-manager-app
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-postgres}@postgres:5432/fridge_manager?schema=public
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    depends_on:
+      - postgres
+    networks:
+      - fridge-network
+
+volumes:
+  fridge_postgres_data:
+
+networks:
+  fridge-network:
+    driver: bridge
