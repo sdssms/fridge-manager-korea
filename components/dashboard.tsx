@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { AlertCircle, ArrowRight, Check, ChefHat, ChevronRight, ClipboardList, Refrigerator as Fridge, Home, Leaf, LoaderCircle, Plus, Search, ShoppingBasket, Snowflake, Sparkles, Trash2, X } from 'lucide-react'
+import { AlertCircle, ArrowRight, Check, ChefHat, ChevronRight, ClipboardList, Refrigerator as Fridge, Home, Leaf, LoaderCircle, Package, Plus, Search, ShoppingBasket, Snowflake, Sparkles, Trash2, X } from 'lucide-react'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { AccountControls } from '@/components/account-controls'
 import { PersonalPlan } from '@/components/personal-plan'
 
-type FridgeType = 'NORMAL_FRIDGE' | 'NORMAL_FREEZER' | 'KIMCHI_FRIDGE' | 'SIDE_DISH_FRIDGE'
+type FridgeType = 'NORMAL_FRIDGE' | 'NORMAL_FREEZER' | 'KIMCHI_FRIDGE' | 'SIDE_DISH_FRIDGE' | 'PANTRY'
 type Category = 'KIMCHI' | 'SIDE_DISH' | 'SOUP_STEW' | 'SAUCE_SEASONING' | 'BABY_FOOD' | 'MEAT_FISH' | 'VEGETABLE_FRUIT' | 'DAIRY' | 'ETC'
 type Tab = 'home' | 'inventory' | 'shopping' | 'recipes'
 type FoodItem = { id: string; name: string; category: Category; fridge: { type: FridgeType; name: string }; expiryDate: string | null; dday: number | null; quantity: number | null; unit: string | null }
@@ -26,6 +26,7 @@ const fridges: { id: FridgeType; label: string; icon: typeof Fridge }[] = [
   { id: 'NORMAL_FREEZER', label: '냉동실', icon: Snowflake },
   { id: 'KIMCHI_FRIDGE', label: '김치냉장고', icon: Leaf },
   { id: 'SIDE_DISH_FRIDGE', label: '밑반찬', icon: ClipboardList },
+  { id: 'PANTRY', label: '실온보관', icon: Package },
 ]
 const categories: { id: Category; label: string }[] = [
   { id: 'VEGETABLE_FRUIT', label: '채소·과일' }, { id: 'MEAT_FISH', label: '육류·생선' },

@@ -52,9 +52,10 @@ try {
     { name: `QA벌크양파-${suffix}`, category: 'VEGETABLE_FRUIT', fridgeType: 'NORMAL_FRIDGE', quantity: 5, unit: '개' },
     { name: `QA벌크계란-${suffix}`, category: 'DAIRY', fridgeType: 'NORMAL_FRIDGE', expiryDate: null },
     { name: `QA벌크김치-${suffix}`, category: 'KIMCHI', fridgeType: 'KIMCHI_FRIDGE', quantity: 1, unit: '통' },
+    { name: `QA벌크참치캔-${suffix}`, category: 'ETC', fridgeType: 'PANTRY', quantity: 2, unit: '개' },
   ] }
   const bulkResult = await check(await post(A, '/api/items/bulk', bulkPayload), 201, 'bulk create')
-  assert.equal(bulkResult.created, 3, 'bulk created count matches request')
+  assert.equal(bulkResult.created, 4, 'bulk created count matches request')
   const afterBulk = await check(await B.get(`${base}/api/items`), 200, 'bulk items visible to household member')
   for (const entry of bulkPayload.items) assert.ok(afterBulk.some(x => x.name === entry.name), `bulk item ${entry.name} visible`)
   await check(await post(C, '/api/items/bulk', { items: [{ name: 'other household bulk', category: 'ETC', fridgeType: 'NORMAL_FRIDGE' }] }), 201, 'bulk create other household')

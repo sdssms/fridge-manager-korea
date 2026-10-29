@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { assertSameOrigin, requireUser } from '@/lib/auth'
-const schema = z.object({ name: z.string().trim().min(1).max(60), type: z.enum(['NORMAL_FRIDGE','NORMAL_FREEZER','KIMCHI_FRIDGE','SIDE_DISH_FRIDGE']) }).strict()
+const schema = z.object({ name: z.string().trim().min(1).max(60), type: z.enum(['NORMAL_FRIDGE','NORMAL_FREEZER','KIMCHI_FRIDGE','SIDE_DISH_FRIDGE','PANTRY']) }).strict()
 export async function GET() {
   const user = await requireUser()
   if (!user) return NextResponse.json({ error: '로그인이 필요해요.' }, { status: 401 })

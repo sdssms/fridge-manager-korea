@@ -7,13 +7,13 @@ import { rateLimit } from '@/lib/security'
 const singleItem = z.object({
   name: z.string().trim().min(1).max(80),
   category: z.enum(['KIMCHI', 'SIDE_DISH', 'SOUP_STEW', 'SAUCE_SEASONING', 'BABY_FOOD', 'MEAT_FISH', 'VEGETABLE_FRUIT', 'DAIRY', 'ETC']),
-  fridgeType: z.enum(['NORMAL_FRIDGE', 'NORMAL_FREEZER', 'KIMCHI_FRIDGE', 'SIDE_DISH_FRIDGE']),
+  fridgeType: z.enum(['NORMAL_FRIDGE', 'NORMAL_FREEZER', 'KIMCHI_FRIDGE', 'SIDE_DISH_FRIDGE', 'PANTRY']),
   expiryDate: z.iso.date().nullable().optional(),
   quantity: z.number().positive().max(100000).nullable().optional(),
   unit: z.string().trim().max(20).nullable().optional(),
 }).strict()
 const bulkSchema = z.object({ items: z.array(singleItem).min(1).max(200) }).strict()
-const fridgeNames = { NORMAL_FRIDGE: '일반 냉장고', NORMAL_FREEZER: '냉동실', KIMCHI_FRIDGE: '김치냉장고', SIDE_DISH_FRIDGE: '밑반찬 냉장고' } as const
+const fridgeNames = { NORMAL_FRIDGE: '일반 냉장고', NORMAL_FREEZER: '냉동실', KIMCHI_FRIDGE: '김치냉장고', SIDE_DISH_FRIDGE: '밑반찬 냉장고', PANTRY: '실온보관' } as const
 
 export async function POST(request: Request) {
   const user = await requireUser()

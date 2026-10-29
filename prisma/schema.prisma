@@ -12,6 +12,7 @@ enum FridgeType {
   NORMAL_FREEZER
   KIMCHI_FRIDGE
   SIDE_DISH_FRIDGE
+  PANTRY
 }
 enum FoodCategory {
   KIMCHI

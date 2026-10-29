@@ -6,10 +6,10 @@ import { assertSameOrigin, requireUser } from '@/lib/auth'
 const createItem = z.object({
   name: z.string().trim().min(1).max(80),
   category: z.enum(['KIMCHI', 'SIDE_DISH', 'SOUP_STEW', 'SAUCE_SEASONING', 'BABY_FOOD', 'MEAT_FISH', 'VEGETABLE_FRUIT', 'DAIRY', 'ETC']),
-  fridgeType: z.enum(['NORMAL_FRIDGE', 'NORMAL_FREEZER', 'KIMCHI_FRIDGE', 'SIDE_DISH_FRIDGE']),
+  fridgeType: z.enum(['NORMAL_FRIDGE', 'NORMAL_FREEZER', 'KIMCHI_FRIDGE', 'SIDE_DISH_FRIDGE', 'PANTRY']),
   expiryDate: z.iso.date().nullable(), quantity: z.number().positive().max(100000).nullable(), unit: z.string().trim().max(20).nullable(),
 }).strict()
-const fridgeNames = { NORMAL_FRIDGE: '일반 냉장고', NORMAL_FREEZER: '냉동실', KIMCHI_FRIDGE: '김치냉장고', SIDE_DISH_FRIDGE: '밑반찬 냉장고' } as const
+const fridgeNames = { NORMAL_FRIDGE: '일반 냉장고', NORMAL_FREEZER: '냉동실', KIMCHI_FRIDGE: '김치냉장고', SIDE_DISH_FRIDGE: '밑반찬 냉장고', PANTRY: '실온보관' } as const
 
 export async function GET() {
   const user = await requireUser()
