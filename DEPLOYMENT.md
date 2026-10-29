@@ -1,209 +1,23 @@
-# 🚀 홈서버 배포 가이드
+# Fresh Keep 운영 배포·복구
 
-## 📋 사전 준비
+운영 주소: https://fridge.ian-rounge.store. 앱 컨테이너 포트 3001, DB는 로컬 전용 `127.0.0.1:5433`.
 
-### 1. 도메인 DNS 설정 (가비아)
-```
-fridge.ian-rounge.store  A  122.32.73.14
-```
+## 안전한 배포 순서
 
-### 2. 공유기 포트포워딩
-- 외부 포트: 443 (HTTPS)
-- 내부 IP: Mac Mini IP
-- 내부 포트: 443
+1. `.env`(Git 제외, 권한 `0600`)에 `DB_PASSWORD`와 호스트에서 쓸 `DATABASE_URL`을 지정한다. **평문 자격 증명은 Compose/YAML/README/Git에 기록하지 않는다.** `docker compose -f docker-compose.prod.yml config --quiet`로 확인한다.
+2. 운영 DB 백업과 복구 시험을 한다. 예: `docker exec fridge-manager-db pg_dump -Fc -U postgres -d fridge_manager > ~/fridge-backups/fridge-before-update.dump`; 별도 시험 DB를 만들고 `docker exec -i fridge-manager-db pg_restore --no-owner -U postgres -d <시험 DB> < ~/fridge-backups/fridge-before-update.dump`로 원복 가능한지 확인한다.
+3. `npm ci && npx prisma generate && npm run build && npm run lint` 및 격리된 시험 DB의 인증/권한/화면 테스트를 통과한다.
+4. **스키마와 API가 동시에 바뀌는 릴리스:** 구 앱 정지 → 새 이미지 빌드 → `DATABASE_URL`을 호스트 접속 URL로 설정해 `npx prisma migrate deploy` → `npx prisma migrate status` 확인 → `docker compose -f docker-compose.prod.yml up -d --no-build app`. `docker compose down -v`는 데이터를 지우므로 실행 금지.
+5. 최초 1회만 `ADMIN_EMAIL`/`ADMIN_PASSWORD_FILE`/`DATABASE_URL`을 설정하고 `node scripts/bootstrap-admin.mjs` 실행. 첫 관리자 비밀번호는 Git 외부 권한 `0600` 파일에 저장; 스크립트는 기존 관리자 생성 후 재실행을 차단한다.
+6. `docker compose -f docker-compose.prod.yml ps`와 `docker logs fridge-manager-app`을 확인한다. 익명 `/api/items`, `/api/fridges`, `/api/shopping`은 401, `/login`은 200이어야 한다. 관리자 로그인의 본인 가족 재고만 보이는지 확인한다.
 
----
+## 2026-10-29 전환 기록
 
-## 🔧 배포 단계
+- 원본 DB 커스텀 백업: `/Users/sms/fridge-backups/fridge-before-auth-20261029.dump` (시험 DB 복원 성공).
+- 마이그레이션: `20261029041423_household_auth`. 기존 냉장고 2개, 재료 6개 → `legacy-household`; 초기 관리자 1명 연결. 전환 뒤 항목 수 유지, 소유 누락 0.
+- DB 비밀번호 교체, PostgreSQL 포트 루프백 바인딩. 과거 Git에 포함됐던 `.env.production`은 추적 해제했지만 **과거 Git 기록의 비밀은 기록에서 자동 삭제되지 않음**; DB 기존 비밀번호는 폐기됨. 다른 곳에 재사용했다면 별도 교체 필요.
+- HTTPS의 Caddy 로컬 경유 `/login` 200, 익명 `/api/items`·`/api/fridges` 401. 외부 이동통신망과 실제 모바일 기기 검증은 남아 있다.
 
-### 1단계: 프로젝트 클론 (이미 완료)
-```bash
-cd ~/fridge-manager-korea
-git pull origin main
-```
+## 복구
 
-### 2단계: 환경 변수 설정
-```bash
-# .env.production 파일 수정
-nano .env.production
-
-# 내용:
-DATABASE_URL="postgresql://postgres:STRONG_PASSWORD@localhost:5433/fridge_manager"
-DB_PASSWORD=STRONG_PASSWORD
-```
-
-### 3단계: 자동 배포 스크립트 실행
-```bash
-cd ~/fridge-manager-korea
-./deploy.sh
-```
-
-### 4단계: Caddy 설정 추가
-
-**방법 A: 기존 Caddy 컨테이너에 추가**
-```bash
-# 기존 Caddyfile 위치 찾기
-docker exec macmini-edge-caddy-1 cat /etc/caddy/Caddyfile
-
-# 아래 내용 추가:
-fridge.ian-rounge.store {
-  encode zstd gzip
-  header {
-    -Server
-    Strict-Transport-Security "max-age=31536000"
-  }
-  reverse_proxy host.docker.internal:3001
-}
-
-# Caddy 재시작
-docker restart macmini-edge-caddy-1
-```
-
-**방법 B: 새 Caddy 컨테이너 (포트 충돌 시)**
-```bash
-cd ~/fridge-manager-korea
-cp Caddyfile.example Caddyfile
-
-docker run -d \
-  --name fridge-caddy \
-  --network host \
-  -v $(pwd)/Caddyfile:/etc/caddy/Caddyfile \
-  -v caddy_data:/data \
-  caddy:latest
-```
-
----
-
-## ✅ 배포 확인
-
-### 1. 컨테이너 상태 확인
-```bash
-docker-compose -f docker-compose.prod.yml ps
-```
-
-예상 출력:
-```
-NAME                    STATUS              PORTS
-fridge-manager-app      Up 2 minutes        0.0.0.0:3001->3001/tcp
-fridge-manager-db       Up 2 minutes        0.0.0.0:5433->5432/tcp
-```
-
-### 2. 로그 확인
-```bash
-# 앱 로그
-docker-compose -f docker-compose.prod.yml logs -f app
-
-# 데이터베이스 로그
-docker-compose -f docker-compose.prod.yml logs -f postgres
-```
-
-### 3. 로컬 접속 테스트
-```bash
-curl http://localhost:3001
-```
-
-### 4. 도메인 접속 테스트
-```bash
-curl https://fridge.ian-rounge.store
-```
-
----
-
-## 🔄 업데이트 방법
-
-```bash
-cd ~/fridge-manager-korea
-git pull origin main
-docker-compose -f docker-compose.prod.yml down
-docker-compose -f docker-compose.prod.yml build --no-cache
-docker-compose -f docker-compose.prod.yml up -d
-```
-
----
-
-## 🛠️ 트러블슈팅
-
-### 포트 충돌
-```bash
-# 사용 중인 포트 확인
-lsof -i :3001
-
-# 기존 프로세스 종료
-kill -9 <PID>
-```
-
-### 데이터베이스 연결 실패
-```bash
-# 데이터베이스 재시작
-docker-compose -f docker-compose.prod.yml restart postgres
-
-# 연결 테스트
-docker exec -it fridge-manager-db psql -U postgres -d fridge_manager
-```
-
-### Caddy 인증서 문제
-```bash
-# Caddy 로그 확인
-docker logs macmini-edge-caddy-1
-
-# 인증서 강제 갱신
-docker exec macmini-edge-caddy-1 caddy reload --config /etc/caddy/Caddyfile
-```
-
----
-
-## 📊 모니터링
-
-### 리소스 사용량 확인
-```bash
-docker stats fridge-manager-app fridge-manager-db
-```
-
-### 디스크 사용량
-```bash
-docker system df
-```
-
-### 백업
-```bash
-# 데이터베이스 백업
-docker exec fridge-manager-db pg_dump -U postgres fridge_manager > backup_$(date +%Y%m%d).sql
-```
-
----
-
-## 🔒 보안 권장 사항
-
-1. **.env.production** 파일 권한 설정
-   ```bash
-   chmod 600 .env.production
-   ```
-
-2. **방화벽 설정** (macOS)
-   ```bash
-   sudo pfctl -e
-   ```
-
-3. **정기 업데이트**
-   ```bash
-   # 주 1회 실행 권장
-   docker-compose -f docker-compose.prod.yml pull
-   docker-compose -f docker-compose.prod.yml up -d
-   ```
-
----
-
-## 📱 접속 주소
-
-- **개발**: http://localhost:3000
-- **프로덕션**: https://fridge.ian-rounge.store
-- **API**: https://fridge.ian-rounge.store/api
-- **데이터베이스**: localhost:5433
-
----
-
-## 📞 문제 발생 시
-
-1. GitHub Issues: https://github.com/sdssms/fridge-manager-korea/issues
-2. 로그 확인: `docker-compose -f docker-compose.prod.yml logs`
-3. 재시작: `./deploy.sh`
+장애 시 먼저 `docker compose -f docker-compose.prod.yml ps`와 앱 로그, `npx prisma migrate status`를 확인한다. DB 복원은 **운영 데이터가 새로 쌓였을 때 모두 사라질 수 있으므로** 별도 최신 백업을 먼저 확보한 뒤 시험 DB에서 검증하고 진행한다. DB를 이전 스키마로 되돌린 경우 앱 이미지도 대응되는 버전으로 되돌려야 한다. 백업 원본은 저장소에 추가하지 않는다.

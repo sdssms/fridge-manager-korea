@@ -4,7 +4,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Install OpenSSL for Prisma
-RUN apk add --no-cache openssl openssl-dev
+RUN apk add --no-cache openssl openssl-dev python3 make g++
 
 # Copy package files
 COPY package*.json ./
@@ -28,8 +28,7 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 # Install OpenSSL for Prisma runtime
-RUN apk add --no-cache openssl
-
+RUN apk add --no-cache openssl python3 make g++
 ENV NODE_ENV=production
 
 # Copy necessary files from builder

@@ -8,6 +8,7 @@ async function main() {
     data: {
       name: '일반 냉장고',
       type: FridgeType.NORMAL_FRIDGE,
+      householdId: 'legacy-household',
     },
   })
 
@@ -15,6 +16,7 @@ async function main() {
     data: {
       name: '김치냉장고',
       type: FridgeType.KIMCHI_FRIDGE,
+      householdId: 'legacy-household',
     },
   })
 

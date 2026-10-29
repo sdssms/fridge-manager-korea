@@ -1,115 +1,231 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url = env("DATABASE_URL")
 }
 
-// 냉장고 타입
 enum FridgeType {
-  NORMAL_FRIDGE   // 일반 냉장고
-  NORMAL_FREEZER  // 일반 냉동실
-  KIMCHI_FRIDGE   // 김치냉장고
-  SIDE_DISH_FRIDGE // 밑반찬 냉장고
+  NORMAL_FRIDGE
+  NORMAL_FREEZER
+  KIMCHI_FRIDGE
+  SIDE_DISH_FRIDGE
 }
-
-// 식재료 카테고리
 enum FoodCategory {
-  KIMCHI          // 김치/장아찌
-  SIDE_DISH       // 밑반찬
-  SOUP_STEW       // 국/찌개/육수
-  SAUCE_SEASONING // 장류/양념
-  BABY_FOOD       // 이유식
-  MEAT_FISH       // 육류/생선
-  VEGETABLE_FRUIT // 채소/과일
-  DAIRY           // 유제품
-  ETC             // 기타
+  KIMCHI
+  SIDE_DISH
+  SOUP_STEW
+  SAUCE_SEASONING
+  BABY_FOOD
+  MEAT_FISH
+  VEGETABLE_FRUIT
+  DAIRY
+  ETC
 }
-
-// 김치 숙성도
 enum KimchiRipeness {
-  FRESH      // 막김치 (0-3일)
-  RIPE       // 적당 (4-14일)
-  SOUR       // 신김치 (15일+)
+  FRESH
+  RIPE
+  SOUR
 }
-
-// 이유식 단계
 enum BabyFoodStage {
-  EARLY   // 초기 (4-6개월)
-  MIDDLE  // 중기 (7-9개월)
-  LATE    // 후기 (10-12개월)
+  EARLY
+  MIDDLE
+  LATE
+}
+enum UserRole {
+  ADMIN
+  USER
+}
+enum UserStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+  SUSPENDED
+}
+enum MembershipStatus {
+  ACTIVE
+  LEFT
+}
+enum JoinStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
 }
 
-// 냉장고
+model User {
+  id String @id @default(cuid())
+  name String
+  email String @unique
+  passwordHash String
+  role UserRole @default(USER)
+  status UserStatus @default(PENDING)
+  approvedAt DateTime?
+  approvedById String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sessions Session[]
+  memberships HouseholdMembership[]
+  joinRequests JoinRequest[] @relation("Applicant")
+  decisions JoinRequest[] @relation("Decider")
+  meta ItemPersonalMeta[]
+  shoppingItems ShoppingItem[]
+  createdHouseholds Household[]
+  invitations HouseholdInvitation[]
+  @@map("users")
+}
+model Session {
+  id String @id @default(cuid())
+  tokenHash String @unique
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([userId])
+  @@map("sessions")
+}
+model Household {
+  id String @id @default(cuid())
+  name String
+  createdById String?
+  createdBy User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  members HouseholdMembership[]
+  invitations HouseholdInvitation[]
+  joinRequests JoinRequest[]
+  fridges Fridge[]
+  shopping ShoppingItem[]
+  @@map("households")
+}
+model HouseholdMembership {
+  id String @id @default(cuid())
+  householdId String
+  userId String
+  status MembershipStatus @default(ACTIVE)
+  joinedAt DateTime @default(now())
+  leftAt DateTime?
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([householdId, status])
+  @@map("household_memberships")
+}
+model HouseholdInvitation {
+  id String @id @default(cuid())
+  householdId String
+  codeHash String @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdById String
+  createdAt DateTime @default(now())
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  createdBy User @relation(fields: [createdById], references: [id])
+  @@map("household_invitations")
+}
+model JoinRequest {
+  id String @id @default(cuid())
+  householdId String
+  requesterId String
+  status JoinStatus @default(PENDING)
+  decidedById String?
+  decidedAt DateTime?
+  createdAt DateTime @default(now())
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  requester User @relation("Applicant", fields: [requesterId], references: [id], onDelete: Cascade)
+  decidedBy User? @relation("Decider", fields: [decidedById], references: [id])
+  @@index([householdId, status])
+  @@map("join_requests")
+}
 model Fridge {
-  id        String      @id @default(cuid())
-  name      String      // "우리집 냉장고", "김치냉장고"
-  type      FridgeType
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  
-  items     FoodItem[]
-  
+  id String @id @default(cuid())
+  name String
+  type FridgeType
+  householdId String
+  household Household @relation(fields: [householdId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  items FoodItem[]
+  @@index([householdId])
   @@map("fridges")
 }
-
-// 식재료
 model FoodItem {
-  id          String        @id @default(cuid())
-  name        String        // "배추김치", "멸치볶음"
-  category    FoodCategory
-  quantity    Float?        // 수량
-  unit        String?       // "kg", "개", "큐브"
-  
-  // 날짜 관리
-  purchaseDate DateTime?    // 구매일
-  expiryDate   DateTime?    // 유통기한
-  openedAt     DateTime?    // 개봉일
-  
-  // 김치 전용
-  kimchiType     String?          // "배추김치", "깍두기"
+  id String @id @default(cuid())
+  name String
+  category FoodCategory
+  quantity Float?
+  unit String?
+  purchaseDate DateTime?
+  expiryDate DateTime?
+  openedAt DateTime?
+  kimchiType String?
   kimchiRipeness KimchiRipeness?
-  
-  // 이유식 전용
-  babyFoodStage  BabyFoodStage?
-  cubeCount      Int?             // 큐브 개수
-  
-  // 관계
-  fridgeId    String
-  fridge      Fridge    @relation(fields: [fridgeId], references: [id], onDelete: Cascade)
-  
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
-  @@map("food_items")
+  babyFoodStage BabyFoodStage?
+  cubeCount Int?
+  fridgeId String
+  fridge Fridge @relation(fields: [fridgeId], references: [id], onDelete: Cascade)
+  meta ItemPersonalMeta[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   @@index([fridgeId])
   @@index([expiryDate])
   @@index([category])
+  @@map("food_items")
 }
-
-// 프리셋 템플릿
+model ItemPersonalMeta {
+  id String @id @default(cuid())
+  userId String
+  foodItemId String
+  cookingPurpose String?
+  personalNote String?
+  plannedQuantity Float?
+  plannedUnit String?
+  pinned Boolean @default(false)
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  foodItem FoodItem @relation(fields: [foodItemId], references: [id], onDelete: Cascade)
+  @@unique([userId, foodItemId])
+  @@map("item_personal_meta")
+}
+model ShoppingItem {
+  id String @id @default(cuid())
+  householdId String
+  addedById String
+  name String
+  checked Boolean @default(false)
+  createdAt DateTime @default(now())
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  addedBy User @relation(fields: [addedById], references: [id])
+  @@index([householdId])
+  @@map("shopping_items")
+}
+model RateLimit {
+  key String @id
+  count Int @default(0)
+  resetAt DateTime
+  @@map("rate_limits")
+}
+model AuditEvent {
+  id String @id @default(cuid())
+  actorId String?
+  targetId String?
+  action String
+  createdAt DateTime @default(now())
+  @@map("audit_events")
+}
 model FoodPreset {
-  id                String        @id @default(cuid())
-  name              String        @unique // "배추김치", "멸치볶음"
-  category          FoodCategory
-  defaultShelfLife  Int?          // 기본 유통기한 (일)
-  defaultUnit       String?       // 기본 단위
-  
-  // 김치 프리셋
-  isKimchi          Boolean       @default(false)
-  kimchiType        String?
-  
-  // 이유식 프리셋
-  isBabyFood        Boolean       @default(false)
-  babyFoodStage     BabyFoodStage?
-  
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  
+  id String @id @default(cuid())
+  name String @unique
+  category FoodCategory
+  defaultShelfLife Int?
+  defaultUnit String?
+  isKimchi Boolean @default(false)
+  kimchiType String?
+  isBabyFood Boolean @default(false)
+  babyFoodStage BabyFoodStage?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   @@map("food_presets")
 }

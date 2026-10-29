@@ -1,23 +1,19 @@
-version: '3.8'
-
 services:
-  # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
     container_name: fridge-manager-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       POSTGRES_DB: fridge_manager
     ports:
-      - "5433:5432"  # 포트 충돌 방지
+      - "127.0.0.1:5433:5432"
     volumes:
       - fridge_postgres_data:/var/lib/postgresql/data
     networks:
       - fridge-network
 
-  # Next.js App
   app:
     build:
       context: .
@@ -26,7 +22,8 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-postgres}@postgres:5432/fridge_manager?schema=public
+      APP_ORIGIN: https://fridge.ian-rounge.store
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD:?DB_PASSWORD is required}@postgres:5432/fridge_manager?schema=public
       PORT: 3001
     ports:
       - "3001:3001"

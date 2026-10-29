@@ -24,7 +24,7 @@ yarn-error.log*
 
 # Local env files
 .env
-.env*.local
+.env.*
 
 # Vercel
 .vercel
@@ -32,6 +32,3 @@ yarn-error.log*
 # Typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# Prisma
-prisma/migrations/
