@@ -15,6 +15,7 @@ try {
   await check(await post(api, '/api/items', { name: 'forbidden' }), 401, 'anonymous item write')
   await check(await api.get(`${base}/api/shopping`), 401, 'anonymous shopping')
   await check(await api.get(`${base}/api/admin/requests`), 401, 'anonymous admin')
+  await check(await post(api, '/api/items/bulk', { items: [{ name: 'forbidden', category: 'ETC', fridgeType: 'NORMAL_FRIDGE' }] }), 401, 'anonymous bulk write')
   const password = 'StrongPass-9082!'
   const users = [a,b,c].map((context, n) => ({ context, email: `authqa-${suffix}-${n}@example.test` }))
   for (const { context, email } of users) {
@@ -47,6 +48,21 @@ try {
   await check(await post(A, `/api/households/requests/${join.id}`, { action: 'APPROVE' }), 200, 'family approves')
   const payload = { name: `QA당근-${suffix}`, category: 'VEGETABLE_FRUIT', fridgeType: 'NORMAL_FRIDGE', expiryDate: null, quantity: 3, unit: '개' }
   const item = await check(await post(A, '/api/items', payload), 201, 'create shared item')
+  const bulkPayload = { items: [
+    { name: `QA벌크양파-${suffix}`, category: 'VEGETABLE_FRUIT', fridgeType: 'NORMAL_FRIDGE', quantity: 5, unit: '개' },
+    { name: `QA벌크계란-${suffix}`, category: 'DAIRY', fridgeType: 'NORMAL_FRIDGE', expiryDate: null },
+    { name: `QA벌크김치-${suffix}`, category: 'KIMCHI', fridgeType: 'KIMCHI_FRIDGE', quantity: 1, unit: '통' },
+  ] }
+  const bulkResult = await check(await post(A, '/api/items/bulk', bulkPayload), 201, 'bulk create')
+  assert.equal(bulkResult.created, 3, 'bulk created count matches request')
+  const afterBulk = await check(await B.get(`${base}/api/items`), 200, 'bulk items visible to household member')
+  for (const entry of bulkPayload.items) assert.ok(afterBulk.some(x => x.name === entry.name), `bulk item ${entry.name} visible`)
+  await check(await post(C, '/api/items/bulk', { items: [{ name: 'other household bulk', category: 'ETC', fridgeType: 'NORMAL_FRIDGE' }] }), 201, 'bulk create other household')
+  const crossCheck = await check(await B.get(`${base}/api/items`), 200, 'household B after other bulk')
+  assert.ok(!crossCheck.some(x => x.name === 'other household bulk'), 'other household bulk items stay isolated')
+  await check(await post(A, '/api/items/bulk', { items: [] }), 400, 'bulk rejects empty list')
+  await check(await post(A, '/api/items/bulk', { items: [{ name: 'bad category', category: 'NOT_REAL', fridgeType: 'NORMAL_FRIDGE' }] }), 400, 'bulk rejects invalid category')
+  await check(await post(A, '/api/items/bulk', { items: Array.from({ length: 201 }, (_, i) => ({ name: `over-${i}`, category: 'ETC', fridgeType: 'NORMAL_FRIDGE' })) }), 400, 'bulk rejects over 200 items')
   const visible = await check(await B.get(`${base}/api/items`), 200, 'second member sees shared item')
   assert.ok(visible.some(x => x.id === item.id), 'shared family inventory')
   const stranger = await check(await C.get(`${base}/api/items`), 200, 'other family list')
