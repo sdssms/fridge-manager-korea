@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { differenceInDays } from 'date-fns';
 import StatCard from './components/StatCard';
 import FoodCard from './components/FoodCard';
+import AddItemModal from './components/AddItemModal';
 
 type FoodItem = {
   id: string;
@@ -61,6 +62,7 @@ export default function Home() {
   const [items, setItems] = useState<FoodItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterType>('ALL');
+  const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
     fetchItems();
@@ -75,6 +77,30 @@ export default function Home() {
       console.error('Failed to fetch items:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddItem = async (formData: any) => {
+    try {
+      const res = await fetch('/api/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          category: formData.category,
+          expiryDate: formData.expiryDate,
+          quantity: formData.quantity,
+          unit: formData.unit,
+          fridgeType: formData.fridgeType,
+          memo: formData.memo,
+        }),
+      });
+      
+      if (res.ok) {
+        await fetchItems();
+      }
+    } catch (error) {
+      console.error('Failed to add item:', error);
     }
   };
 
@@ -250,6 +276,7 @@ export default function Home() {
                 첫 식재료를 등록해보세요!
               </p>
               <motion.button
+                onClick={() => setShowAddModal(true)}
                 className="inline-flex items-center gap-2 bg-accent text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:bg-accent-light transition-colors"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -291,6 +318,7 @@ export default function Home() {
 
       {/* FAB */}
       <motion.button
+        onClick={() => setShowAddModal(true)}
         className="fixed bottom-6 right-6 w-16 h-16 bg-accent text-white rounded-full shadow-xl flex items-center justify-center text-3xl hover:bg-accent-light transition-colors z-20"
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
@@ -300,6 +328,13 @@ export default function Home() {
       >
         +
       </motion.button>
+
+      {/* Add Item Modal */}
+      <AddItemModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSubmit={handleAddItem}
+      />
 
       <style jsx global>{`
         .scrollbar-hide::-webkit-scrollbar {
