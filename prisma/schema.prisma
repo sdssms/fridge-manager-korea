@@ -55,6 +55,16 @@ enum JoinStatus {
   REJECTED
   CANCELLED
 }
+enum ConsumptionAction {
+  EATEN
+  DISCARDED
+}
+enum DiscardReason {
+  EXPIRED
+  SPOILED
+  TOO_MUCH
+  OTHER
+}
 
 model User {
   id String @id @default(cuid())
@@ -75,6 +85,7 @@ model User {
   shoppingItems ShoppingItem[]
   createdHouseholds Household[]
   invitations HouseholdInvitation[]
+  consumptionEvents ConsumptionEvent[]
   @@map("users")
 }
 model Session {
@@ -100,6 +111,7 @@ model Household {
   joinRequests JoinRequest[]
   fridges Fridge[]
   shopping ShoppingItem[]
+  consumptionEvents ConsumptionEvent[]
   @@map("households")
 }
 model HouseholdMembership {
@@ -201,6 +213,22 @@ model ShoppingItem {
   addedBy User @relation(fields: [addedById], references: [id])
   @@index([householdId])
   @@map("shopping_items")
+}
+model ConsumptionEvent {
+  id String @id @default(cuid())
+  householdId String
+  actorId String?
+  itemName String
+  category FoodCategory
+  quantity Float?
+  unit String?
+  action ConsumptionAction
+  discardReason DiscardReason?
+  occurredAt DateTime @default(now())
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  @@index([householdId, occurredAt])
+  @@map("consumption_events")
 }
 model RateLimit {
   key String @id

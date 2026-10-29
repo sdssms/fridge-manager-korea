@@ -4,14 +4,36 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { assertSameOrigin, requireUser } from '@/lib/auth'
 const updateSchema = z.object({ name: z.string().trim().min(1).max(80).optional(), quantity: z.number().positive().max(100000).nullable().optional(), unit: z.string().max(20).nullable().optional(), expiryDate: z.iso.date().nullable().optional() }).strict()
+const deleteSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('EATEN') }).strict(),
+  z.object({ action: z.literal('DISCARDED'), discardReason: z.enum(['EXPIRED', 'SPOILED', 'TOO_MUCH', 'OTHER']) }).strict(),
+])
 export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
   const user = await requireUser()
   if (!user) return NextResponse.json({ error: '로그인이 필요해요.' }, { status: 401 })
   if (!user.householdId || !assertSameOrigin(request)) return NextResponse.json({ error: '권한이 없어요.' }, { status: 403 })
+  const parsed = deleteSchema.safeParse(await request.json().catch(() => null))
+  if (!parsed.success) return NextResponse.json({ error: '다 먹었는지 버렸는지 선택해주세요.' }, { status: 400 })
   const { id } = await context.params
+  const householdId = user.householdId
   const result = await prisma.$transaction(async tx => {
-    const removed = await tx.foodItem.deleteMany({ where: { id, fridge: { householdId: user.householdId! } } })
-    if (removed.count) await tx.auditEvent.create({ data: { actorId: user.id, targetId: id, action: 'ITEM_DELETED' } })
+    const item = await tx.foodItem.findFirst({ where: { id, fridge: { householdId } } })
+    if (!item) return 0
+    const removed = await tx.foodItem.deleteMany({ where: { id, fridge: { householdId } } })
+    if (!removed.count) return 0
+    await tx.consumptionEvent.create({
+      data: {
+        householdId,
+        actorId: user.id,
+        itemName: item.name,
+        category: item.category,
+        quantity: item.quantity,
+        unit: item.unit,
+        action: parsed.data.action,
+        discardReason: parsed.data.action === 'DISCARDED' ? parsed.data.discardReason : null,
+      },
+    })
+    await tx.auditEvent.create({ data: { actorId: user.id, targetId: id, action: 'ITEM_DELETED' } })
     return removed.count
   })
   return result ? NextResponse.json({ success: true }) : NextResponse.json({ error: '재료를 찾지 못했어요.' }, { status: 404 })
