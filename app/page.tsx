@@ -1,68 +1,32 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { differenceInDays } from 'date-fns';
-import StatCard from './components/StatCard';
-import FoodCard from './components/FoodCard';
-import AddItemModal from './components/AddItemModal';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 type FoodItem = {
   id: string;
   name: string;
+  expiryDate: string;
+  quantity: number;
+  unit: string;
   category: string;
-  expiryDate: string | null;
-  quantity: number | null;
-  unit: string | null;
-  cubeCount: number | null;
   fridge: {
-    name: string;
     type: string;
   };
-};
-
-type FilterType = 'ALL' | 'NORMAL' | 'KIMCHI' | 'SIDE_DISH' | 'BABY_FOOD';
-
-const fridgeTypeLabels: Record<string, string> = {
-  NORMAL: '일반 냉장고',
-  KIMCHI: '김치 냉장고',
-  SIDE_DISH: '밑반찬 냉장고',
-};
-
-const getCategoryEmoji = (category: string, name: string) => {
-  const emojiMap: Record<string, string> = {
-    DAIRY: '🥛',
-    VEGETABLE_FRUIT: '🥬',
-    MEAT_FISH: '🐟',
-    KIMCHI: '🥬',
-    SIDE_DISH: '🍱',
-    BABY_FOOD: '🍼',
-    SOUP_STEW: '🍲',
-    SAUCE_SEASONING: '🧂',
-    ETC: '📦',
-  };
-  
-  // 이름 기반 매칭
-  if (name.includes('우유')) return '🥛';
-  if (name.includes('계란')) return '🥚';
-  if (name.includes('김치')) return '🥬';
-  if (name.includes('나물')) return '🥬';
-  if (name.includes('멸치')) return '🐟';
-  if (name.includes('큐브') || name.includes('이유식')) return '🍼';
-  
-  return emojiMap[category] || '📦';
-};
-
-const getDaysLeft = (expiryDate: string | null) => {
-  if (!expiryDate) return 999;
-  return differenceInDays(new Date(expiryDate), new Date());
 };
 
 export default function Home() {
   const [items, setItems] = useState<FoodItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<FilterType>('ALL');
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  
+  // 폼 상태
+  const [name, setName] = useState('');
+  const [fridgeType, setFridgeType] = useState('NORMAL');
+  const [expiryDate, setExpiryDate] = useState('');
 
   useEffect(() => {
     fetchItems();
@@ -80,271 +44,186 @@ export default function Home() {
     }
   };
 
-  const handleAddItem = async (formData: any) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
     try {
       const res = await fetch('/api/items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: formData.name,
-          category: formData.category,
-          expiryDate: formData.expiryDate,
-          quantity: formData.quantity,
-          unit: formData.unit,
-          fridgeType: formData.fridgeType,
-          memo: formData.memo,
+          name,
+          fridgeType,
+          expiryDate,
+          quantity: 1,
+          unit: '개',
+          category: 'ETC',
         }),
       });
-      
+
       if (res.ok) {
         await fetchItems();
+        setName('');
+        setExpiryDate('');
+        setFridgeType('NORMAL');
+        setShowModal(false);
       }
     } catch (error) {
       console.error('Failed to add item:', error);
     }
   };
 
-  // 통계 계산
-  const urgentItems = items.filter(item => {
-    const days = getDaysLeft(item.expiryDate);
-    return days <= 2;
-  });
-
-  const warningItems = items.filter(item => {
-    const days = getDaysLeft(item.expiryDate);
-    return days > 2 && days <= 5;
-  });
-
-  const freshItems = items.filter(item => {
-    const days = getDaysLeft(item.expiryDate);
-    return days > 5;
-  });
-
-  // 필터링
-  const filteredItems = items.filter(item => {
-    if (filter === 'ALL') return true;
-    if (filter === 'BABY_FOOD') return item.category === 'BABY_FOOD';
-    return item.fridge.type === filter;
-  });
-
-  // 정렬 (유통기한 빠른 순)
-  const sortedItems = [...filteredItems].sort((a, b) => {
-    const daysA = getDaysLeft(a.expiryDate);
-    const daysB = getDaysLeft(b.expiryDate);
-    return daysA - daysB;
-  });
+  const getDaysLeft = (date: string) => {
+    const diff = new Date(date).getTime() - new Date().getTime();
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <motion.div
-            className="w-16 h-16 border-4 border-accent border-t-transparent rounded-full mx-auto"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          />
-          <p className="mt-4 text-gray-600 text-body-md">로딩 중...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <p>로딩 중...</p>
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-bg-secondary pb-24">
+    <main className="min-h-screen bg-gray-50 pb-20">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">🏠</span>
-              <h1 className="text-h3 text-primary font-bold">Fresh Keep</h1>
-            </div>
-            <div className="flex items-center gap-4">
-              <button className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                <span className="text-xl">🔔</span>
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-              </button>
-              <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                <span className="text-xl">⚙️</span>
-              </button>
-            </div>
+      <header className="bg-white border-b sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+          <h1 className="text-2xl font-bold">🏠 Fresh Keep</h1>
+          <div className="flex gap-2">
+            <Button variant="ghost" size="icon">🔔</Button>
+            <Button variant="ghost" size="icon">⚙️</Button>
           </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-4xl mx-auto px-4 py-6">
         {/* 통계 카드 */}
-        <section className="mb-8">
-          <h2 className="text-h4 font-semibold text-primary mb-4">냉장고 현황</h2>
-          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-            <StatCard
-              icon="🔴"
-              label="긴급"
-              count={urgentItems.length}
-              color="urgent"
-              description="D-2 이하"
-              onClick={() => {/* TODO: 필터 */}}
-            />
-            <StatCard
-              icon="🟡"
-              label="주의"
-              count={warningItems.length}
-              color="warning"
-              description="D-5 이하"
-              onClick={() => {/* TODO: 필터 */}}
-            />
-            <StatCard
-              icon="🟢"
-              label="신선"
-              count={freshItems.length}
-              color="fresh"
-              description="D+6 이상"
-              onClick={() => {/* TODO: 필터 */}}
-            />
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="bg-white p-4 rounded-lg border">
+            <div className="text-red-500 text-2xl mb-1">🔴</div>
+            <div className="text-sm text-gray-600">긴급</div>
+            <div className="text-2xl font-bold">{items.filter(i => getDaysLeft(i.expiryDate) <= 2).length}</div>
           </div>
-        </section>
-
-        {/* 빠른 액션 */}
-        <section className="mb-6">
-          <div className="grid grid-cols-2 gap-3">
-            <motion.button
-              className="flex items-center justify-center gap-2 bg-white p-4 rounded-lg border-2 border-gray-200 hover:border-accent transition-colors"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <span className="text-xl">📝</span>
-              <span className="text-body-md font-medium text-primary">장보기 리스트</span>
-            </motion.button>
-            <motion.button
-              className="flex items-center justify-center gap-2 bg-white p-4 rounded-lg border-2 border-gray-200 hover:border-accent transition-colors"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <span className="text-xl">👨‍🍳</span>
-              <span className="text-body-md font-medium text-primary">오늘 뭐 먹지?</span>
-            </motion.button>
+          <div className="bg-white p-4 rounded-lg border">
+            <div className="text-orange-500 text-2xl mb-1">🟡</div>
+            <div className="text-sm text-gray-600">주의</div>
+            <div className="text-2xl font-bold">{items.filter(i => getDaysLeft(i.expiryDate) > 2 && getDaysLeft(i.expiryDate) <= 5).length}</div>
           </div>
-        </section>
-
-        {/* 필터 탭 */}
-        <section className="mb-6">
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-            {[
-              { key: 'ALL', label: '전체', count: items.length },
-              { key: 'NORMAL', label: '일반', count: items.filter(i => i.fridge.type === 'NORMAL').length },
-              { key: 'KIMCHI', label: '김치', count: items.filter(i => i.fridge.type === 'KIMCHI').length },
-              { key: 'SIDE_DISH', label: '밑반찬', count: items.filter(i => i.fridge.type === 'SIDE_DISH').length },
-              { key: 'BABY_FOOD', label: '이유식', count: items.filter(i => i.category === 'BABY_FOOD').length },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setFilter(tab.key as FilterType)}
-                className={`
-                  px-4 py-2 rounded-lg text-body-md font-medium whitespace-nowrap transition-all
-                  ${filter === tab.key
-                    ? 'bg-accent text-white shadow-md'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }
-                `}
-              >
-                {tab.label} ({tab.count})
-              </button>
-            ))}
+          <div className="bg-white p-4 rounded-lg border">
+            <div className="text-green-500 text-2xl mb-1">🟢</div>
+            <div className="text-sm text-gray-600">신선</div>
+            <div className="text-2xl font-bold">{items.filter(i => getDaysLeft(i.expiryDate) > 5).length}</div>
           </div>
-        </section>
-
-        {/* 정렬 */}
-        <div className="flex justify-between items-center mb-4">
-          <p className="text-body-sm text-text-secondary">
-            총 {sortedItems.length}개
-          </p>
-          <select className="text-body-sm text-text-secondary bg-white border border-gray-300 rounded-lg px-3 py-1.5">
-            <option>유통기한 빠른 순</option>
-            <option>유통기한 늦은 순</option>
-            <option>등록일 최신순</option>
-            <option>이름 가나다순</option>
-          </select>
         </div>
 
-        {/* 식재료 그리드 */}
-        <section>
-          {sortedItems.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="text-6xl mb-4">🏪</div>
-              <h3 className="text-h3 font-semibold text-primary mb-2">냉장고가 비어있어요</h3>
-              <p className="text-body-md text-text-secondary mb-6">
-                첫 식재료를 등록해보세요!
-              </p>
-              <motion.button
-                onClick={() => setShowAddModal(true)}
-                className="inline-flex items-center gap-2 bg-accent text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:bg-accent-light transition-colors"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <span className="text-xl">+</span>
-                첫 식재료 등록하기
-              </motion.button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              <AnimatePresence mode="popLayout">
-                {sortedItems.map((item, index) => (
-                  <FoodCard
-                    key={item.id}
-                    id={item.id}
-                    name={item.name}
-                    emoji={getCategoryEmoji(item.category, item.name)}
-                    daysUntilExpiry={getDaysLeft(item.expiryDate)}
-                    fridgeType={fridgeTypeLabels[item.fridge.type] || item.fridge.name}
-                    quantity={
-                      item.cubeCount
-                        ? `${item.cubeCount}큐브`
-                        : item.quantity && item.unit
-                        ? `${item.quantity}${item.unit}`
-                        : undefined
-                    }
-                    onClick={() => {/* TODO: 상세 보기 */}}
-                    onMenuClick={(e) => {
-                      e.stopPropagation();
-                      // TODO: 메뉴
-                    }}
-                  />
-                ))}
-              </AnimatePresence>
-            </div>
-          )}
-        </section>
+        {/* 식재료 리스트 */}
+        <div className="bg-white rounded-lg border">
+          <div className="p-4 border-b">
+            <h2 className="font-semibold">전체 식재료 ({items.length})</h2>
+          </div>
+          <div className="divide-y">
+            {items.length === 0 ? (
+              <div className="p-8 text-center text-gray-500">
+                등록된 식재료가 없습니다
+              </div>
+            ) : (
+              items.map((item) => {
+                const days = getDaysLeft(item.expiryDate);
+                const color = days <= 2 ? 'text-red-500' : days <= 5 ? 'text-orange-500' : 'text-green-500';
+                
+                return (
+                  <div key={item.id} className="p-4 flex items-center justify-between hover:bg-gray-50">
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{item.name}</h3>
+                      <p className="text-sm text-gray-600">{item.fridge.type} · {item.quantity}{item.unit}</p>
+                    </div>
+                    <div className={`text-right ${color}`}>
+                      <div className="font-semibold">D{days >= 0 ? '+' : ''}{days}</div>
+                      <div className="text-xs">{item.expiryDate}</div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
       </div>
 
       {/* FAB */}
-      <motion.button
-        onClick={() => setShowAddModal(true)}
-        className="fixed bottom-6 right-6 w-16 h-16 bg-accent text-white rounded-full shadow-xl flex items-center justify-center text-3xl hover:bg-accent-light transition-colors z-20"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+      <Button
+        onClick={() => setShowModal(true)}
+        className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg"
+        size="icon"
       >
-        +
-      </motion.button>
+        <span className="text-2xl">+</span>
+      </Button>
 
-      {/* Add Item Modal */}
-      <AddItemModal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onSubmit={handleAddItem}
-      />
+      {/* Modal */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>식재료 등록</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="name">식재료명</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="예: 우유"
+                required
+              />
+            </div>
 
-      <style jsx global>{`
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-      `}</style>
+            <div>
+              <Label>냉장고</Label>
+              <div className="grid grid-cols-4 gap-2 mt-2">
+                {[
+                  { value: 'NORMAL', label: '일반', icon: '🏠' },
+                  { value: 'KIMCHI', label: '김치', icon: '🥬' },
+                  { value: 'SIDE_DISH', label: '밑반찬', icon: '🍱' },
+                  { value: 'BABY_FOOD', label: '이유식', icon: '🍼' },
+                ].map((type) => (
+                  <Button
+                    key={type.value}
+                    type="button"
+                    variant={fridgeType === type.value ? 'default' : 'outline'}
+                    onClick={() => setFridgeType(type.value)}
+                    className="h-16 flex flex-col"
+                  >
+                    <span className="text-2xl">{type.icon}</span>
+                    <span className="text-xs">{type.label}</span>
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="expiryDate">유통기한</Label>
+              <Input
+                id="expiryDate"
+                type="date"
+                value={expiryDate}
+                onChange={(e) => setExpiryDate(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => setShowModal(false)} className="flex-1">
+                취소
+              </Button>
+              <Button type="submit" className="flex-1">
+                저장
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
