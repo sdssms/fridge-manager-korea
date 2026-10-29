@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+qa-output
+tests
+*.log
+.env
+.env.*
+.DS_Store
