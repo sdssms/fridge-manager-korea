@@ -1,238 +1,315 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { Plus, Refrigerator, AlertCircle, Clock, Baby } from 'lucide-react'
-import { differenceInDays, format } from 'date-fns'
-import { ko } from 'date-fns/locale'
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { differenceInDays } from 'date-fns';
+import StatCard from './components/StatCard';
+import FoodCard from './components/FoodCard';
 
 type FoodItem = {
-  id: string
-  name: string
-  category: string
-  expiryDate: string | null
-  quantity: number | null
-  unit: string | null
-  cubeCount: number | null
+  id: string;
+  name: string;
+  category: string;
+  expiryDate: string | null;
+  quantity: number | null;
+  unit: string | null;
+  cubeCount: number | null;
   fridge: {
-    name: string
-    type: string
-  }
-}
+    name: string;
+    type: string;
+  };
+};
+
+type FilterType = 'ALL' | 'NORMAL' | 'KIMCHI' | 'SIDE_DISH' | 'BABY_FOOD';
+
+const fridgeTypeLabels: Record<string, string> = {
+  NORMAL: '일반 냉장고',
+  KIMCHI: '김치 냉장고',
+  SIDE_DISH: '밑반찬 냉장고',
+};
+
+const getCategoryEmoji = (category: string, name: string) => {
+  const emojiMap: Record<string, string> = {
+    DAIRY: '🥛',
+    VEGETABLE_FRUIT: '🥬',
+    MEAT_FISH: '🐟',
+    KIMCHI: '🥬',
+    SIDE_DISH: '🍱',
+    BABY_FOOD: '🍼',
+    SOUP_STEW: '🍲',
+    SAUCE_SEASONING: '🧂',
+    ETC: '📦',
+  };
+  
+  // 이름 기반 매칭
+  if (name.includes('우유')) return '🥛';
+  if (name.includes('계란')) return '🥚';
+  if (name.includes('김치')) return '🥬';
+  if (name.includes('나물')) return '🥬';
+  if (name.includes('멸치')) return '🐟';
+  if (name.includes('큐브') || name.includes('이유식')) return '🍼';
+  
+  return emojiMap[category] || '📦';
+};
+
+const getDaysLeft = (expiryDate: string | null) => {
+  if (!expiryDate) return 999;
+  return differenceInDays(new Date(expiryDate), new Date());
+};
 
 export default function Home() {
-  const [items, setItems] = useState<FoodItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const [items, setItems] = useState<FoodItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<FilterType>('ALL');
 
   useEffect(() => {
-    fetchItems()
-  }, [])
+    fetchItems();
+  }, []);
 
   const fetchItems = async () => {
-    const res = await fetch('/api/items')
-    const data = await res.json()
-    setItems(data)
-    setLoading(false)
-  }
-
-  const getDaysLeft = (expiryDate: string | null) => {
-    if (!expiryDate) return null
-    return differenceInDays(new Date(expiryDate), new Date())
-  }
-
-  const getStatusColor = (daysLeft: number | null) => {
-    if (daysLeft === null) return 'bg-gray-100 text-gray-600'
-    if (daysLeft <= 0) return 'bg-red-100 text-red-600 border-red-300'
-    if (daysLeft <= 3) return 'bg-orange-100 text-orange-600 border-orange-300'
-    return 'bg-green-100 text-green-600 border-green-300'
-  }
-
-  const getStatusText = (daysLeft: number | null) => {
-    if (daysLeft === null) return '날짜 없음'
-    if (daysLeft <= 0) return 'D-Day (오늘까지!)'
-    if (daysLeft === 1) return 'D-1 (내일까지)'
-    return `D-${daysLeft}`
-  }
-
-  const getCategoryEmoji = (category: string) => {
-    const emojiMap: Record<string, string> = {
-      KIMCHI: '🥬',
-      SIDE_DISH: '🍱',
-      BABY_FOOD: '🍼',
-      MEAT_FISH: '🥩',
-      VEGETABLE_FRUIT: '🥕',
-      DAIRY: '🥛',
-      SOUP_STEW: '🍲',
-      SAUCE_SEASONING: '🧂',
-      ETC: '📦',
+    try {
+      const res = await fetch('/api/items');
+      const data = await res.json();
+      setItems(data);
+    } catch (error) {
+      console.error('Failed to fetch items:', error);
+    } finally {
+      setLoading(false);
     }
-    return emojiMap[category] || '📦'
-  }
+  };
 
-  const urgentItems = items.filter((item) => {
-    const daysLeft = getDaysLeft(item.expiryDate)
-    return daysLeft !== null && daysLeft <= 3
-  })
+  // 통계 계산
+  const urgentItems = items.filter(item => {
+    const days = getDaysLeft(item.expiryDate);
+    return days <= 2;
+  });
 
-  const freshItems = items.filter((item) => {
-    const daysLeft = getDaysLeft(item.expiryDate)
-    return daysLeft === null || daysLeft > 3
-  })
+  const warningItems = items.filter(item => {
+    const days = getDaysLeft(item.expiryDate);
+    return days > 2 && days <= 5;
+  });
+
+  const freshItems = items.filter(item => {
+    const days = getDaysLeft(item.expiryDate);
+    return days > 5;
+  });
+
+  // 필터링
+  const filteredItems = items.filter(item => {
+    if (filter === 'ALL') return true;
+    if (filter === 'BABY_FOOD') return item.category === 'BABY_FOOD';
+    return item.fridge.type === filter;
+  });
+
+  // 정렬 (유통기한 빠른 순)
+  const sortedItems = [...filteredItems].sort((a, b) => {
+    const daysA = getDaysLeft(a.expiryDate);
+    const daysB = getDaysLeft(b.expiryDate);
+    return daysA - daysB;
+  });
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">로딩 중...</p>
+          <motion.div
+            className="w-16 h-16 border-4 border-accent border-t-transparent rounded-full mx-auto"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+          />
+          <p className="mt-4 text-gray-600 text-body-md">로딩 중...</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 pb-20">
-      {/* 헤더 */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Refrigerator className="w-6 h-6 text-green-600" />
-              <h1 className="text-xl font-bold text-gray-900">우리집 냉장고</h1>
+    <main className="min-h-screen bg-bg-secondary pb-24">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🏠</span>
+              <h1 className="text-h3 text-primary font-bold">Fresh Keep</h1>
             </div>
-            <button className="bg-green-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-green-600">
-              <Plus className="w-5 h-5" />
-              <span>등록</span>
-            </button>
+            <div className="flex items-center gap-4">
+              <button className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <span className="text-xl">🔔</span>
+                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+              </button>
+              <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <span className="text-xl">⚙️</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* 통계 카드 */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-            <AlertCircle className="w-6 h-6 text-red-600 mx-auto mb-1" />
-            <div className="text-2xl font-bold text-red-600">{urgentItems.length}</div>
-            <div className="text-xs text-red-600 mt-1">곧 먹어야 해요</div>
+        <section className="mb-8">
+          <h2 className="text-h4 font-semibold text-primary mb-4">냉장고 현황</h2>
+          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+            <StatCard
+              icon="🔴"
+              label="긴급"
+              count={urgentItems.length}
+              color="urgent"
+              description="D-2 이하"
+              onClick={() => {/* TODO: 필터 */}}
+            />
+            <StatCard
+              icon="🟡"
+              label="주의"
+              count={warningItems.length}
+              color="warning"
+              description="D-5 이하"
+              onClick={() => {/* TODO: 필터 */}}
+            />
+            <StatCard
+              icon="🟢"
+              label="신선"
+              count={freshItems.length}
+              color="fresh"
+              description="D+6 이상"
+              onClick={() => {/* TODO: 필터 */}}
+            />
           </div>
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-            <Clock className="w-6 h-6 text-green-600 mx-auto mb-1" />
-            <div className="text-2xl font-bold text-green-600">{freshItems.length}</div>
-            <div className="text-xs text-green-600 mt-1">신선해요</div>
+        </section>
+
+        {/* 빠른 액션 */}
+        <section className="mb-6">
+          <div className="grid grid-cols-2 gap-3">
+            <motion.button
+              className="flex items-center justify-center gap-2 bg-white p-4 rounded-lg border-2 border-gray-200 hover:border-accent transition-colors"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <span className="text-xl">📝</span>
+              <span className="text-body-md font-medium text-primary">장보기 리스트</span>
+            </motion.button>
+            <motion.button
+              className="flex items-center justify-center gap-2 bg-white p-4 rounded-lg border-2 border-gray-200 hover:border-accent transition-colors"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <span className="text-xl">👨‍🍳</span>
+              <span className="text-body-md font-medium text-primary">오늘 뭐 먹지?</span>
+            </motion.button>
           </div>
-          <div className="bg-pink-50 border border-pink-200 rounded-lg p-4 text-center">
-            <Baby className="w-6 h-6 text-pink-600 mx-auto mb-1" />
-            <div className="text-2xl font-bold text-pink-600">
-              {items.filter((i) => i.category === 'BABY_FOOD').length}
-            </div>
-            <div className="text-xs text-pink-600 mt-1">이유식</div>
+        </section>
+
+        {/* 필터 탭 */}
+        <section className="mb-6">
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            {[
+              { key: 'ALL', label: '전체', count: items.length },
+              { key: 'NORMAL', label: '일반', count: items.filter(i => i.fridge.type === 'NORMAL').length },
+              { key: 'KIMCHI', label: '김치', count: items.filter(i => i.fridge.type === 'KIMCHI').length },
+              { key: 'SIDE_DISH', label: '밑반찬', count: items.filter(i => i.fridge.type === 'SIDE_DISH').length },
+              { key: 'BABY_FOOD', label: '이유식', count: items.filter(i => i.category === 'BABY_FOOD').length },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setFilter(tab.key as FilterType)}
+                className={`
+                  px-4 py-2 rounded-lg text-body-md font-medium whitespace-nowrap transition-all
+                  ${filter === tab.key
+                    ? 'bg-accent text-white shadow-md'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }
+                `}
+              >
+                {tab.label} ({tab.count})
+              </button>
+            ))}
           </div>
+        </section>
+
+        {/* 정렬 */}
+        <div className="flex justify-between items-center mb-4">
+          <p className="text-body-sm text-text-secondary">
+            총 {sortedItems.length}개
+          </p>
+          <select className="text-body-sm text-text-secondary bg-white border border-gray-300 rounded-lg px-3 py-1.5">
+            <option>유통기한 빠른 순</option>
+            <option>유통기한 늦은 순</option>
+            <option>등록일 최신순</option>
+            <option>이름 가나다순</option>
+          </select>
         </div>
 
-        {/* 긴급 알림 */}
-        {urgentItems.length > 0 && (
-          <section>
-            <h2 className="text-lg font-bold text-red-600 mb-3 flex items-center gap-2">
-              <AlertCircle className="w-5 h-5" />
-              🚨 곧 먹어야 해요!
-            </h2>
-            <div className="space-y-2">
-              {urgentItems.map((item) => {
-                const daysLeft = getDaysLeft(item.expiryDate)
-                return (
-                  <div
-                    key={item.id}
-                    className={`bg-white border-2 rounded-lg p-4 ${getStatusColor(daysLeft)}`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="text-3xl">{getCategoryEmoji(item.category)}</span>
-                        <div>
-                          <h3 className="font-bold text-gray-900">{item.name}</h3>
-                          <p className="text-sm text-gray-600 mt-1">
-                            {item.fridge.name}
-                            {item.cubeCount && ` · ${item.cubeCount}큐브`}
-                            {item.quantity && item.unit && ` · ${item.quantity}${item.unit}`}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-bold">{getStatusText(daysLeft)}</div>
-                        {item.expiryDate && (
-                          <div className="text-xs text-gray-500 mt-1">
-                            {format(new Date(item.expiryDate), 'MM/dd', { locale: ko })}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
+        {/* 식재료 그리드 */}
+        <section>
+          {sortedItems.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="text-6xl mb-4">🏪</div>
+              <h3 className="text-h3 font-semibold text-primary mb-2">냉장고가 비어있어요</h3>
+              <p className="text-body-md text-text-secondary mb-6">
+                첫 식재료를 등록해보세요!
+              </p>
+              <motion.button
+                className="inline-flex items-center gap-2 bg-accent text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:bg-accent-light transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <span className="text-xl">+</span>
+                첫 식재료 등록하기
+              </motion.button>
             </div>
-          </section>
-        )}
-
-        {/* 신선한 식재료 */}
-        {freshItems.length > 0 && (
-          <section>
-            <h2 className="text-lg font-bold text-gray-900 mb-3">✅ 신선해요</h2>
-            <div className="space-y-2">
-              {freshItems.map((item) => {
-                const daysLeft = getDaysLeft(item.expiryDate)
-                return (
-                  <div
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <AnimatePresence mode="popLayout">
+                {sortedItems.map((item, index) => (
+                  <FoodCard
                     key={item.id}
-                    className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{getCategoryEmoji(item.category)}</span>
-                        <div>
-                          <h3 className="font-semibold text-gray-900">{item.name}</h3>
-                          <p className="text-sm text-gray-500 mt-1">
-                            {item.fridge.name}
-                            {item.cubeCount && ` · ${item.cubeCount}큐브`}
-                            {item.quantity && item.unit && ` · ${item.quantity}${item.unit}`}
-                          </p>
-                        </div>
-                      </div>
-                      {daysLeft !== null && (
-                        <div className="text-right">
-                          <div className="text-sm font-medium text-gray-600">
-                            {getStatusText(daysLeft)}
-                          </div>
-                          {item.expiryDate && (
-                            <div className="text-xs text-gray-400 mt-1">
-                              {format(new Date(item.expiryDate), 'MM/dd', { locale: ko })}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
+                    id={item.id}
+                    name={item.name}
+                    emoji={getCategoryEmoji(item.category, item.name)}
+                    daysUntilExpiry={getDaysLeft(item.expiryDate)}
+                    fridgeType={fridgeTypeLabels[item.fridge.type] || item.fridge.name}
+                    quantity={
+                      item.cubeCount
+                        ? `${item.cubeCount}큐브`
+                        : item.quantity && item.unit
+                        ? `${item.quantity}${item.unit}`
+                        : undefined
+                    }
+                    onClick={() => {/* TODO: 상세 보기 */}}
+                    onMenuClick={(e) => {
+                      e.stopPropagation();
+                      // TODO: 메뉴
+                    }}
+                  />
+                ))}
+              </AnimatePresence>
             </div>
-          </section>
-        )}
-
-        {/* 빈 상태 */}
-        {items.length === 0 && (
-          <div className="text-center py-16">
-            <Refrigerator className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              냉장고가 비어있어요
-            </h3>
-            <p className="text-gray-500 mb-6">
-              식재료를 등록하고 유통기한을 관리해보세요!
-            </p>
-            <button className="bg-green-500 text-white px-6 py-3 rounded-lg flex items-center gap-2 mx-auto hover:bg-green-600">
-              <Plus className="w-5 h-5" />
-              <span>첫 식재료 등록하기</span>
-            </button>
-          </div>
-        )}
+          )}
+        </section>
       </div>
+
+      {/* FAB */}
+      <motion.button
+        className="fixed bottom-6 right-6 w-16 h-16 bg-accent text-white rounded-full shadow-xl flex items-center justify-center text-3xl hover:bg-accent-light transition-colors z-20"
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+      >
+        +
+      </motion.button>
+
+      <style jsx global>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </main>
-  )
+  );
 }
