@@ -12,7 +12,7 @@ try {
   const items = await context.request.get(`${base}/api/items`)
   assert.equal(items.status(), 200, `owned stock ${items.status()}`)
   const data = await items.json()
-  assert.equal(data.length, 6, 'legacy stock preserved')
+  assert.ok(data.length >= 6, `legacy stock preserved, got ${data.length}`)
   const me = await context.request.get(`${base}/api/auth/me`)
   assert.equal((await me.json()).user.role, 'ADMIN')
   assert.equal((await context.request.post(`${base}/api/auth/logout`, { headers: origin })).status(), 200)

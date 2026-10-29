@@ -2,15 +2,44 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { AuthLayout, primary } from '@/components/auth-layout'
+import { AuthLayout, field, primary } from '@/components/auth-layout'
 type JoinRow = { id: string; name: string; createdAt: string }
 export default function FamilyPage() {
   const router = useRouter()
   const [household, setHousehold] = useState<{name:string}|null>(null), [isAdmin, setIsAdmin] = useState(false), [members, setMembers] = useState<{id:string;name:string}[]>([]), [requests, setRequests] = useState<JoinRow[]>([]), [code, setCode] = useState(''), [error, setError] = useState('')
+  const [closing, setClosing] = useState(false), [confirmName, setConfirmName] = useState(''), [closePassword, setClosePassword] = useState(''), [closeError, setCloseError] = useState(''), [closeBusy, setCloseBusy] = useState(false)
   async function load() { try { const r = await fetch('/api/households/me', { cache: 'no-store' }); if (r.status === 403) { router.replace('/onboarding'); return } if (r.status === 401) { router.replace('/login'); return } if (!r.ok) throw Error(); const body = await r.json(); setHousehold(body.household); setMembers(body.members); const me = await fetch('/api/auth/me', { cache: 'no-store' }); if (me.ok) setIsAdmin((await me.json()).user?.role === 'ADMIN'); const pending = await fetch('/api/households/requests', { cache: 'no-store' }); if (pending.ok) setRequests(await pending.json()) } catch { setError('가족 정보를 불러오지 못했어요.') } }
   useEffect(() => { const timer = setTimeout(() => { void load() }, 0); return () => clearTimeout(timer) }, []) // eslint-disable-line react-hooks/exhaustive-deps
   async function invite() { try { const r = await fetch('/api/households/invitations', { method: 'POST' }); if (!r.ok) throw Error(); setCode((await r.json()).code) } catch { setError('초대코드를 만들지 못했어요.') } }
   async function decide(id: string, action: 'APPROVE'|'REJECT') { try { const r = await fetch(`/api/households/requests/${id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) }); if (!r.ok) throw Error(); await load() } catch { setError('신청을 처리하지 못했어요.') } }
   async function leave() { if (!window.confirm('가족에서 탈퇴할까요? 내 요리 메모는 삭제되고 다시 합류하려면 승인이 필요해요.')) return; try { const r = await fetch('/api/households/leave', { method: 'POST' }); if (!r.ok) { setError((await r.json()).error || '탈퇴하지 못했어요.'); return } router.replace('/login'); router.refresh() } catch { setError('탈퇴하지 못했어요.') } }
-  return <AuthLayout title={household ? household.name : '가족 정보를 확인 중'} subtitle="공동 냉장고와 장보기 목록을 함께 사용해요.">{error && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}<section><h2 className="mb-3 font-bold">우리 가족 구성원</h2><div className="space-y-2">{members.map(member => <div key={member.id} className="rounded-xl bg-[#f5f7fa] p-3 text-sm font-medium">{member.name}</div>)}</div></section><section className="mt-7"><h2 className="font-bold">가족 초대</h2><p className="my-2 text-xs leading-5 text-[#8b95a1]">코드를 새로 만들면 이전 코드는 사용할 수 없어요. 코드만으로 합류되지 않고 구성원 승인이 필요해요.</p><button className={primary} onClick={() => void invite()}>초대코드 만들기 / 교체</button>{code && <div className="mt-3 rounded-xl bg-[#e7f6ee] p-4"><p className="text-xs text-[#6b7684]">코드는 7일간 유효해요. 지금 복사해 전달하세요.</p><code className="mt-2 block break-all select-all text-sm font-bold text-[#1f7d56]">{code}</code><button onClick={() => void navigator.clipboard.writeText(code)} className="mt-3 h-11 text-sm font-bold text-[#2fa36e]">코드 복사</button></div>}</section><section className="mt-7"><h2 className="mb-3 font-bold">합류 신청 {requests.length}건</h2>{requests.length ? requests.map(row => <div key={row.id} className="mb-2 rounded-xl border border-[#eef0f3] p-4"><p className="text-sm font-semibold">{row.name}님이 합류를 신청했어요</p><div className="mt-3 flex gap-2"><button className="h-11 flex-1 rounded-xl bg-[#2fa36e] text-sm font-bold text-white" onClick={() => void decide(row.id, 'APPROVE')}>승인</button><button className="h-11 flex-1 rounded-xl border text-sm font-semibold" onClick={() => void decide(row.id, 'REJECT')}>거절</button></div></div>) : <p className="text-sm text-[#8b95a1]">대기 중인 합류 신청이 없어요.</p>}</section>{isAdmin && <Link href="/admin" className="mt-7 block text-sm font-bold text-[#2fa36e]">가입 신청 관리</Link>}<Link href="/" className="mt-7 inline-block text-sm font-semibold text-[#2fa36e]">냉장고로 돌아가기</Link>{members.length > 1 && <button onClick={() => void leave()} className="mt-5 block h-11 text-sm text-[#8b95a1]">가족에서 탈퇴</button>}</AuthLayout>
+  async function closeHousehold() {
+    setCloseBusy(true); setCloseError('')
+    try {
+      const r = await fetch('/api/households/close', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirmName, password: closePassword }) })
+      const data = await r.json()
+      if (!r.ok) { setCloseError(data.error || '폐쇄하지 못했어요.'); return }
+      router.replace('/login'); router.refresh()
+    } catch { setCloseError('연결을 확인해주세요.') } finally { setCloseBusy(false) }
+  }
+  return <AuthLayout title={household ? household.name : '가족 정보를 확인 중'} subtitle="공동 냉장고와 장보기 목록을 함께 사용해요.">
+    {error && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+    <section><h2 className="mb-3 font-bold">우리 가족 구성원</h2><div className="space-y-2">{members.map(member => <div key={member.id} className="rounded-xl bg-[#f5f7fa] p-3 text-sm font-medium">{member.name}</div>)}</div></section>
+    <section className="mt-7"><h2 className="font-bold">가족 초대</h2><p className="my-2 text-xs leading-5 text-[#8b95a1]">코드를 새로 만들면 이전 코드는 사용할 수 없어요. 코드만으로 합류되지 않고 구성원 승인이 필요해요.</p><button className={primary} onClick={() => void invite()}>초대코드 만들기 / 교체</button>{code && <div className="mt-3 rounded-xl bg-[#e7f6ee] p-4"><p className="text-xs text-[#6b7684]">코드는 7일간 유효해요. 지금 복사해 전달하세요.</p><code className="mt-2 block break-all select-all text-sm font-bold text-[#1f7d56]">{code}</code><button onClick={() => void navigator.clipboard.writeText(code)} className="mt-3 h-11 text-sm font-bold text-[#2fa36e]">코드 복사</button></div>}</section>
+    <section className="mt-7"><h2 className="mb-3 font-bold">합류 신청 {requests.length}건</h2>{requests.length ? requests.map(row => <div key={row.id} className="mb-2 rounded-xl border border-[#eef0f3] p-4"><p className="text-sm font-semibold">{row.name}님이 합류를 신청했어요</p><div className="mt-3 flex gap-2"><button className="h-11 flex-1 rounded-xl bg-[#2fa36e] text-sm font-bold text-white" onClick={() => void decide(row.id, 'APPROVE')}>승인</button><button className="h-11 flex-1 rounded-xl border text-sm font-semibold" onClick={() => void decide(row.id, 'REJECT')}>거절</button></div></div>) : <p className="text-sm text-[#8b95a1]">대기 중인 합류 신청이 없어요.</p>}</section>
+    {isAdmin && <Link href="/admin" className="mt-7 block text-sm font-bold text-[#2fa36e]">가입 신청 관리</Link>}
+    <Link href="/account" className="mt-4 block text-sm font-semibold text-[#2fa36e]">비밀번호 변경</Link>
+    <Link href="/" className="mt-7 inline-block text-sm font-semibold text-[#2fa36e]">냉장고로 돌아가기</Link>
+    {members.length > 1 && <button onClick={() => void leave()} className="mt-5 block h-11 text-sm text-[#8b95a1]">가족에서 탈퇴</button>}
+    {members.length === 1 && <section className="mt-9 rounded-2xl border border-[#fbdede] bg-[#fff7f7] p-5">
+      <h2 className="font-bold text-[#b74141]">가족 폐쇄</h2>
+      <p className="my-2 text-xs leading-5 text-[#8b95a1]">마지막 구성원이에요. 폐쇄하면 공동 냉장고·재료·장보기 목록이 모두 영구 삭제되고 되돌릴 수 없어요.</p>
+      {!closing ? <button onClick={() => setClosing(true)} className="h-11 rounded-xl border border-[#e45656] px-4 text-sm font-bold text-[#e45656]">가족 폐쇄하기</button> : <div className="space-y-3">
+        <label className="block text-sm font-semibold">가족 이름 입력 <span className="font-normal text-[#8b95a1]">({household?.name})</span><input className={`mt-2 ${field}`} value={confirmName} onChange={e => setConfirmName(e.target.value)} placeholder={household?.name}/></label>
+        <label className="block text-sm font-semibold">비밀번호<input className={`mt-2 ${field}`} type="password" value={closePassword} onChange={e => setClosePassword(e.target.value)}/></label>
+        {closeError && <p role="alert" className="text-sm text-red-700">{closeError}</p>}
+        <div className="flex gap-2"><button onClick={() => void closeHousehold()} disabled={closeBusy || confirmName !== household?.name || !closePassword} className="h-11 flex-1 rounded-xl bg-[#e45656] text-sm font-bold text-white disabled:opacity-40">{closeBusy ? '폐쇄하는 중...' : '영구 폐쇄'}</button><button onClick={() => { setClosing(false); setConfirmName(''); setClosePassword(''); setCloseError('') }} className="h-11 flex-1 rounded-xl border text-sm font-semibold">취소</button></div>
+      </div>}
+    </section>}
+  </AuthLayout>
 }
