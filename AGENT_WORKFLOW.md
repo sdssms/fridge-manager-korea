@@ -1,6 +1,6 @@
 # Fresh Keep 4역할 협업 운영
 
-이 문서는 향후 기능 작업의 역할 분담 기준이다. 별도 상주 프로세스나 자동 배포를 의미하지 않는다. 이 Telegram 대화의 기본 Hermes가 PM이며, 3개의 독립 Hermes 프로필은 작업이 주어졌을 때 실행된다.
+이 문서는 향후 기능 작업의 역할 분담 기준이다. PM·설계자·개발자는 필요할 때 실행하며, 테스터는 서울 시간 매일 09:00 자동으로 가상 생활 시나리오를 검토한다. 이 Telegram 대화의 기본 Hermes가 PM이고 3개의 독립 Hermes 프로필이 각 역할을 맡는다.
 
 ## 역할과 산출물
 - **PM (현재 대화, default)**: 사용자 요청 접수, 범위·우선순위·승인 결정, 작업 브리프 배분, 충돌 방지, 코드 리뷰/테스트 확인, 운영 데이터 백업·배포·운영 smoke test, 사용자에게 단일 결과 보고. 팀원의 주장보다 실제 파일·테스트·운영 결과를 확인한다.
@@ -16,6 +16,6 @@
 5. 실 휴대폰 기기검증은 사용자 요청에 따라 필수 항목이 아니다. 브라우저 반응형 검증을 실기기 검증으로 부르지 않는다.
 
 ## 실행 방식
-- `hermes -p freshkeeptester`, `hermes -p freshkeepdesigner`, `hermes -p freshkeepdeveloper`는 서로 격리된 프로필이다. 현재 Telegram 대화의 PM이 과제를 배분하고 결과를 통합한다. 별도의 Telegram 봇이나 무인 자동 작업은 설정하지 않는다.
+- `hermes -p freshkeeptester`, `hermes -p freshkeepdesigner`, `hermes -p freshkeepdeveloper`는 서로 격리된 프로필이다. 테스터의 반복 점검은 기본 프로필 cron `freshkeep-life-tester`가 스크립트 `~/.hermes/scripts/freshkeep-life-tester.py`로 실제 테스터 프로필을 호출한다. 하루 한 번(09:00 KST) 월~일 생활 시나리오를 순환하며 저장소/읽기 전용 화면/필요한 웹 검색 근거를 구분해 검토한다. 보고는 이 Telegram 대화에 전달하고 `~/.hermes/freshkeep-life-tester/YYYY-MM-DD.md`에 보관한다. 실제 인터뷰나 실기기 검증으로 표현하지 않으며 운영 데이터는 변경하지 않는다. 같은 날 재실행은 중복 보고하지 않는다. 설계자는 PM이 받은 새 요구를 인계받은 뒤 검토하고, 개발·운영 배포는 자동 실행하지 않는다.
 - 코드를 수정할 때는 개발자에게 기능별 `hermes -p freshkeepdeveloper -w ...` 또는 독립 worktree 경로를 사용하게 한다. 여러 기능은 각각 별도 worktree로 나눈다.
 - 프로필별 역할 설명은 각 프로필의 `SOUL.md`에 보관. 공유 프로덕트 상태는 `PROGRESS.md`, 설계·시나리오 문서, 이 파일을 기준으로 한다. 추측한 완료 상태를 인계하지 않는다.
