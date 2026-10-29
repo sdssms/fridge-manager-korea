@@ -1,173 +1,166 @@
-# 🇰🇷 우리집 냉장고 - 한국형 냉장고 재고 관리
+# Fresh Keep - 모바일 우선 냉장고 관리 앱
 
-> 김치, 밑반찬, 이유식까지 관리하는 한국 가정 맞춤형 식재료 관리 서비스
+## 🎯 **완성된 기능 (2026-10-29)**
 
-![Next.js](https://img.shields.io/badge/Next.js-16-black)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
-![Prisma](https://img.shields.io/badge/Prisma-5-2D3748)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791)
+### ✅ Phase 1: 모바일 최적화 UI 완료
 
-## ✨ 주요 기능
+**핵심 기능**
+1. **🏠 브랜드 헤더**
+   - Fresh Keep 로고
+   - 알림, 설정 버튼
 
-### 🎯 한국형 특화 기능
-- **김치 관리** 🥬 - 배추김치, 깍두기, 총각김치 등 12종 프리셋
-- **밑반찬 관리** 🍱 - 멸치볶음, 콩자반 등 20종 프리셋
-- **이유식 관리** 🍼 - 큐브 단위 관리 (1큐브 = 30ml)
-- **김치냉장고 지원** - 일반냉장고와 분리 관리
+2. **📊 통계 대시보드**
+   - 🔴 긴급 (D-2 이하)
+   - 🟡 주의 (D-5 이하)
+   - 🟢 신선 (D+6 이상)
 
-### 📊 실용 기능
-- ⏰ **유통기한 색상 알림** (🔴 긴급 / 🟡 주의 / 🟢 신선)
-- 📱 **직관적인 대시보드** (한눈에 보는 통계)
-- 🧊 **냉장고 타입별 관리** (냉장/냉동/김치/밑반찬)
-- 📅 **D-Day 계산** 자동
+3. **⚡ 빠른 액션**
+   - 장보기 리스트
+   - 오늘 뭐 먹지?
 
-## 🖼️ 스크린샷
+4. **📝 등록 모달 (Sheet)**
+   - 아래에서 올라오는 네이티브 스타일
+   - 자주 등록 버튼 (우유/계란/김치/쌀)
+   - 냉장고 4타입 (2x2 그리드)
+   - 빠른 날짜 선택 (오늘/내일/3일/7일)
+   - 미리보기
 
-![메인 화면](docs/screenshot-main.png)
-
-## 🛠️ 기술 스택
-
-- **Frontend**: Next.js 16, React, TypeScript
-- **Styling**: Tailwind CSS, Lucide Icons
-- **Backend**: Next.js API Routes
-- **Database**: PostgreSQL, Prisma ORM
-- **Infrastructure**: Docker, Docker Compose
-
-## 🚀 빠른 시작
-
-### 1. 저장소 클론
-```bash
-git clone https://github.com/YOUR_USERNAME/fridge-manager-korea.git
-cd fridge-manager-korea
-```
-
-### 2. 의존성 설치
-```bash
-npm install
-```
-
-### 3. 데이터베이스 실행
-```bash
-docker-compose up -d
-```
-
-### 4. 환경 변수 설정
-```bash
-cp .env.example .env
-# .env 파일 수정
-```
-
-### 5. 데이터베이스 마이그레이션
-```bash
-npx prisma migrate dev
-```
-
-### 6. 테스트 데이터 생성 (선택)
-```bash
-npx tsx prisma/seed.ts
-```
-
-### 7. 개발 서버 실행
-```bash
-npm run dev
-```
-
-http://localhost:3000 에서 확인하세요!
-
-## 📦 배포
-
-### Docker Compose 프로덕션 배포
-```bash
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-### 환경 변수
-```
-DATABASE_URL="postgresql://user:password@host:5432/dbname"
-```
-
-## 🗂️ 프로젝트 구조
-
-```
-fridge-manager-korea/
-├── app/                    # Next.js App Router
-│   ├── api/               # API Routes
-│   │   ├── fridges/      # 냉장고 API
-│   │   └── items/        # 식재료 API
-│   └── page.tsx          # 메인 페이지
-├── prisma/
-│   ├── schema.prisma     # DB 스키마
-│   └── seed.ts           # 시드 데이터
-├── lib/
-│   └── prisma.ts         # Prisma Client
-└── docker-compose.yml    # Docker 설정
-```
-
-## 🎨 주요 컴포넌트
-
-### 식재료 카테고리
-- 🥬 김치/장아찌 (KIMCHI)
-- 🍱 밑반찬 (SIDE_DISH)
-- 🍼 이유식 (BABY_FOOD)
-- 🥩 육류/생선 (MEAT_FISH)
-- 🥕 채소/과일 (VEGETABLE_FRUIT)
-- 🥛 유제품 (DAIRY)
-- 🍲 국/찌개/육수 (SOUP_STEW)
-- 🧂 장류/양념 (SAUCE_SEASONING)
-
-### 냉장고 타입
-- 일반 냉장고 (NORMAL_FRIDGE)
-- 일반 냉동실 (NORMAL_FREEZER)
-- 김치냉장고 (KIMCHI_FRIDGE)
-- 밑반찬 냉장고 (SIDE_DISH_FRIDGE)
-
-## 🔮 로드맵
-
-### Phase 1: MVP ✅
-- [x] 식재료 CRUD
-- [x] 유통기한 관리
-- [x] 색상 코딩 알림
-- [x] 이유식 큐브 관리
-- [x] 한글 UI
-
-### Phase 2: 실용성 ⏳
-- [ ] 식재료 등록 폼
-- [ ] 바코드 스캔
-- [ ] 영수증 OCR
-- [ ] 푸시 알림
-- [ ] 가족 공유
-
-### Phase 3: 고도화 📅
-- [ ] AI 레시피 추천
-- [ ] 장보기 리스트
-- [ ] 통계 대시보드
-- [ ] PWA 지원
-
-## 🤝 기여하기
-
-기여는 언제나 환영합니다!
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📄 라이선스
-
-MIT License - 자유롭게 사용하세요!
-
-## 👨‍💻 개발자
-
-Smith Sung ([@smithsung](https://github.com/smithsung))
-
-## 🙏 감사
-
-- [FridgeBuddy](https://apps.apple.com/fridgebuddy) - UI/UX 영감
-- [Next.js](https://nextjs.org/) - 프레임워크
-- [Prisma](https://www.prisma.io/) - ORM
-- [Tailwind CSS](https://tailwindcss.com/) - 스타일링
+5. **📱 모바일 최적화**
+   - 터치 영역 최소 44px
+   - 폰트 16px 이상
+   - Sheet drawer (모바일)
+   - 반응형 그리드
 
 ---
 
-**Made with ❤️ for Korean Families**
+## 🛠 **기술 스택**
+
+```
+Frontend: Next.js 16.4.3 + TypeScript
+UI Library: shadcn/ui (Base UI)
+Styling: Tailwind CSS v4
+Database: PostgreSQL (Prisma)
+Icons: lucide-react
+Deployment: Docker Compose
+```
+
+---
+
+## 📱 **모바일 vs PC 차이**
+
+| 항목 | 모바일 | PC |
+|------|--------|-----|
+| 모달 | Sheet (bottom drawer) | Dialog (center) |
+| 통계 카드 | 3컬럼 (작게) | 3컬럼 (크게) |
+| FAB 크기 | 64px | 56px |
+| FAB 위치 | bottom-20 | bottom-6 |
+| 터치 영역 | 최소 44px | 최소 32px |
+| 냉장고 선택 | 2x2 그리드 | 1x4 가로 |
+
+---
+
+## 🚀 **실행 방법**
+
+### 개발 서버
+```bash
+npm run dev
+# http://localhost:3000
+```
+
+### 프로덕션
+```bash
+docker-compose -f docker-compose.prod.yml up -d --build
+# http://localhost:3001
+```
+
+---
+
+## 📋 **다음 단계 (Phase 2)**
+
+1. **필터 탭** (전체/일반/김치/밑반찬/이유식)
+2. **식재료 상세 모달** (수정/삭제)
+3. **소비 완료 처리** (먹음/버림)
+4. **정렬 기능** (유통기한/등록일/이름)
+5. **검색 기능**
+
+---
+
+## 📋 **Phase 3: 고급 기능**
+
+1. **장보기 탭**
+   - AI 부족 재료 분석
+   - 추천 리스트
+   - 마트 체크모드
+
+2. **레시피 탭**
+   - 냉장고 재료 기반 추천
+   - 긴급 소비 우선
+   - 단계별 가이드
+
+3. **통계 & 인사이트**
+   - 주간 요약
+   - 절약 금액
+   - 쓰레기 감소율
+
+---
+
+## 🎨 **디자인 시스템**
+
+### 색상
+```
+Primary: #2563eb (Blue)
+Accent: #10b981 (Green)
+Urgent: #ef4444 (Red)
+Warning: #f59e0b (Orange)
+```
+
+### 타이포그래피
+```
+제목: text-xl md:text-2xl font-bold
+본문: text-base md:text-lg
+라벨: text-sm md:text-base
+```
+
+### 간격
+```
+모바일: p-4, gap-3
+PC: p-6, gap-4
+```
+
+---
+
+## 📊 **코드 통계**
+
+- **총 라인 수**: ~400 lines (app/page.tsx)
+- **컴포넌트 수**: 8개 (shadcn/ui)
+- **API 엔드포인트**: 3개
+- **코드 감소율**: 68% (v1 대비)
+
+---
+
+## 🔗 **링크**
+
+- **GitHub**: https://github.com/sdssms/fridge-manager-korea
+- **프로덕션**: http://localhost:3001
+- **도메인** (준비중): fridge.ian-rounge.store
+
+---
+
+## 📝 **변경 이력**
+
+### 2026-10-29
+- ✅ shadcn/ui 도입
+- ✅ 모바일 우선 UI 완성
+- ✅ Sheet 모달 구현
+- ✅ 빠른 액션 버튼
+- ✅ 자주 등록/빠른 날짜 선택
+- ✅ 반응형 레이아웃
+
+### 2026-10-28
+- 프로젝트 초기 생성
+- Prisma schema 설계
+- Docker 배포 환경 구성
+
+---
+
+Made with ❤️ by Claude Code
